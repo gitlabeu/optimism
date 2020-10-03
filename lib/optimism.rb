@@ -16,7 +16,7 @@ module Optimism
     self.inject_inline = true
     self.container_selector = "#RESOURCE_ATTRIBUTE_container"
     self.error_selector = "#RESOURCE_ATTRIBUTE_error"
-    self.form_selector = "#RESOURCE_form"
+    self.form_selector = "RESOURCE_form"
     self.submit_selector = "#RESOURCE_submit"
   end
 
@@ -27,7 +27,7 @@ module Optimism
   def broadcast_errors(model, attributes)
     return unless model&.errors&.messages
     resource = ActiveModel::Naming.param_key(model)
-    form_selector, submit_selector = Optimism.form_selector.sub("RESOURCE", resource), Optimism.submit_selector.sub("RESOURCE", resource)
+    form_selector, submit_selector = Optimism.form_selector.sub("RESOURCE", dom_id(resource)), Optimism.submit_selector.sub("RESOURCE", resource)
     attributes = case attributes
     when ActionController::Parameters, Hash, ActiveSupport::HashWithIndifferentAccess
       attributes.to_h
