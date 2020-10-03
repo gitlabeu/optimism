@@ -14,10 +14,10 @@ module Optimism
     self.emit_events = false
     self.add_css = true
     self.inject_inline = true
-    self.container_selector = "#RESOURCE_ATTRIBUTE_container"
-    self.error_selector = "#RESOURCE_ATTRIBUTE_error"
+    self.container_selector = "container"
+    self.error_selector = "error"
     self.form_selector = "form"
-    self.submit_selector = "#RESOURCE_submit"
+    self.submit_selector = "submit"
   end
 
   def self.configure(&block)
@@ -26,8 +26,11 @@ module Optimism
 
   def broadcast_errors(model, attributes)
     return unless model&.errors&.messages
+
     resource = ActiveModel::Naming.param_key(model)
-    form_selector, submit_selector = dom_id(model, Optimism.form_selector), Optimism.submit_selector.sub("RESOURCE", resource)
+    form_selector = dom_id(model, Optimism.form_selector)
+    submit_selector = dom_id(model, Optimism.form_selector)
+
     attributes = case attributes
     when ActionController::Parameters, Hash, ActiveSupport::HashWithIndifferentAccess
       attributes.to_h
@@ -78,7 +81,11 @@ module Optimism
     else
       resource += "_#{ancestry.shift}_attributes_#{ancestry.shift}" until ancestry.empty?
     end
-    container_selector, error_selector = Optimism.container_selector.sub("RESOURCE", resource).sub("ATTRIBUTE", attribute), Optimism.error_selector.sub("RESOURCE", resource).sub("ATTRIBUTE", attribute)
+
+    form_selector = dom_id(model, Optimism.form_selector)
+    container_selector = error_selector = form_selector + '_' + attribute.to_s + '_' + Optimism.container_selector
+    error_selector = form_selector + '_' + attribute.to_s + '_' + Optimism.error_selector
+
     if model.errors.any? && model.errors.messages.map(&:first).include?(attribute.to_sym)
       message = "#{model.errors.full_message(attribute.to_sym, model.errors.messages[attribute.to_sym].first)}#{Optimism.suffix}"
       cable_ready[Optimism.channel[self]].dispatch_event(name: "optimism:attribute:invalid", detail: {resource: resource, attribute: attribute, text: message}) if Optimism.emit_events
@@ -99,7 +106,7 @@ module ActionView::Helpers
     end
 
     def container_id_for(attribute)
-      Optimism.container_selector.sub("RESOURCE", object_name.to_s.delete("]").tr("[", "_")).sub("ATTRIBUTE", attribute.to_s)[1..-1]
+      ActionView::RecordIdentifier.dom_id(object, Optimism.form_selector) + '_' + attribute.to_s + '_' + Optimism.container_selector
     end
 
     def error_for(attribute, **options)
@@ -107,7 +114,7 @@ module ActionView::Helpers
     end
 
     def error_id_for(attribute)
-      Optimism.error_selector.sub("RESOURCE", object_name.to_s.delete("]").tr("[", "_")).sub("ATTRIBUTE", attribute.to_s)[1..-1]
+      ActionView::RecordIdentifier.dom_id(object, Optimism.form_selector) + '_' + attribute.to_s + '_' + Optimism.error_selector
     end
   end
 end
