@@ -27,7 +27,7 @@ module Optimism
   def broadcast_errors(model, attributes)
     return unless model&.errors&.messages
     resource = ActiveModel::Naming.param_key(model)
-    form_selector, submit_selector = dom_id(resource, Optimism.form_selector), Optimism.submit_selector.sub("RESOURCE", resource)
+    form_selector, submit_selector = dom_id(model, Optimism.form_selector), Optimism.submit_selector.sub("RESOURCE", resource)
     attributes = case attributes
     when ActionController::Parameters, Hash, ActiveSupport::HashWithIndifferentAccess
       attributes.to_h
