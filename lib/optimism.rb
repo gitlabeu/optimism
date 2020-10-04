@@ -5,7 +5,7 @@ require "optimism/railtie" if defined?(Rails)
 module Optimism
   include CableReady::Broadcaster
   class << self
-    mattr_accessor :channel, :form_class, :error_class, :disable_submit, :suffix, :emit_events, :add_css, :inject_inline, :container_selector, :error_selector, :form_selector, :submit_selector
+    mattr_accessor :channel, :form_class, :error_class, :disable_submit, :suffix, :emit_events, :add_css, :inject_inline, :container_selector, :error_selector, :form_selector, :submit_selector, :error_field_class, :base_error_selector, :base_error_field_class
     self.channel = ->(context) { "OptimismChannel" }
     self.form_class = "invalid"
     self.error_class = "error"
@@ -18,6 +18,9 @@ module Optimism
     self.error_selector = "error"
     self.form_selector = "form"
     self.submit_selector = "submit"
+    self.error_field_class = 'small align-bottom text-danger'
+    self.base_error_field_class = 'align-bottom text-danger'
+    self.base_error_selector = 'base_error'
   end
 
   def self.configure(&block)
@@ -57,6 +60,14 @@ module Optimism
   end
 
   def process_resource(model, attributes, ancestry)
+    form_selector = dom_id(model, Optimism.form_selector)
+    base_error_selector = form_selector + '_' + Optimism.base_error_selector
+    if model.errors[:base].present?
+      cable_ready[Optimism.channel[self]].text_content(selector: base_error_selector, text: model.errors.full_messages_for(:base).join(', ')) if Optimism.inject_inline
+    else
+      cable_ready[Optimism.channel[self]].text_content(selector: base_error_selector, text: '') if Optimism.inject_inline
+    end
+
     attributes.keys.each do |attribute|
       if attribute.ends_with?("_attributes")
         resource = attribute[0..-12]
@@ -110,11 +121,19 @@ module ActionView::Helpers
     end
 
     def error_for(attribute, **options)
-      @template.tag.span options.merge! id: error_id_for(attribute)
+      @template.tag.span options.merge!(id: error_id_for(attribute), class: Optimism.error_field_class)
     end
 
     def error_id_for(attribute)
       ActionView::RecordIdentifier.dom_id(object, Optimism.form_selector) + '_' + attribute.to_s + '_' + Optimism.error_selector
+    end
+
+    def base_error(**options)
+      @template.tag.span options.merge!(id: base_error_id, class: Optimism.base_error_field_class)
+    end
+
+    def base_error_id
+      ActionView::RecordIdentifier.dom_id(object, Optimism.form_selector) + '_' + Optimism.base_error_selector
     end
   end
 end
